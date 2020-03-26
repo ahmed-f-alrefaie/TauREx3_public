@@ -71,8 +71,8 @@ class NestleOptimizer(Optimizer):
         def nestle_loglike(params):
             # log-likelihood function called by multinest
             fit_params_container = np.array(params)
-            chi_t = self.chisq_trans(fit_params_container, data, datastd)
-            loglike = -np.sum(np.log(datastd*sqrtpi)) - 0.5 * chi_t
+            chi_t = self.chisq_trans(fit_params_container, data, self.error_term)
+            loglike = -np.sum(np.log(self.error_term*sqrtpi)) - 0.5 * chi_t
             return loglike
 
         def nestle_uniform_prior(theta):

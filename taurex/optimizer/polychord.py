@@ -54,12 +54,12 @@ class PolyChordOptimizer(Optimizer):
             # log-likelihood function called by polychord
             fit_params_container = np.array(
                 [cube[i] for i in range(len(self.fitting_parameters))])
-            chi_t = self.chisq_trans(fit_params_container, data, datastd)
+            chi_t = self.chisq_trans(fit_params_container, data, self.error_term)
 
             # print('---------START---------')
             # print('chi_t',chi_t)
             # print('LOG',loglike)
-            loglike = -np.sum(np.log(datastd*sqrtpi)) - 0.5 * chi_t
+            loglike = -np.sum(np.log(self.error_term*sqrtpi)) - 0.5 * chi_t
             return loglike, [0.0]
 
         def polychord_uniform_prior(hypercube):
@@ -78,7 +78,7 @@ class PolyChordOptimizer(Optimizer):
             return cube
         status = None
 
-        datastd_mean = np.mean(datastd)
+        datastd_mean = np.mean(self.error_term)
 
         settings = PolyChordSettings(ndim, 1)
         settings.nlive = ndim * 25

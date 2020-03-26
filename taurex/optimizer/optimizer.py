@@ -35,6 +35,28 @@ class Optimizer(Logger):
         self._model_callback = None
         self._sigma_fraction = sigma_fraction
 
+        self._enable_inflation = False
+        self._inflation_term = 0.0
+        self._inflation_bounds = [-4, 0]
+        self._inflation_mode = 'linear'
+        
+
+    def setup_inflation(self):
+
+        param_name = 'error_inflation'
+        param_latex = '$\\epsilon$'
+
+        def read():
+            return self._inflation_term
+        
+        def write(value):
+            self._inflation_term = value
+
+        bounds = self._inflation_bounds
+        mode = self._inflation_mode
+
+        return param_name, param_latex, read, write, mode, True, bounds
+
     def set_model(self, model):
         """
         Sets the model to be optimized/fit
@@ -81,6 +103,10 @@ class Optimizer(Logger):
             self.debug('Checking fitting parameter {}'.format(params))
             if to_fit:
                 self.fitting_parameters.append(params)
+
+        if self._enable_inflation:
+            self.fitting_parameters.append(self.setup_inflation())
+
 
         self.info('-------FITTING---------------')
         self.info('Parameters to be fit:')
@@ -203,6 +229,11 @@ class Optimizer(Logger):
 
         """
 
+        if parameter == 'error_inflation':
+            self._enable_inflation = True
+            return
+
+
         name, latex, fget, fset, mode, to_fit, bounds = \
             self._model.fittingParameters[parameter]
 
@@ -221,6 +252,11 @@ class Optimizer(Logger):
             Name of the parameter we do not want to fit
 
         """
+
+        if parameter == 'error_inflation':
+            self._enable_inflation = False
+            return
+
         name, latex, fget, fset, mode, to_fit, bounds = \
             self._model.fittingParameters[parameter]
 
@@ -245,6 +281,11 @@ class Optimizer(Logger):
 
 
         """
+
+        if parameter == 'error_inflation':
+            self._inflation_bounds = new_boundaries
+            return
+
         name, latex, fget, fset, mode, to_fit, bounds = \
             self._model.fittingParameters[parameter]
 
@@ -296,6 +337,9 @@ class Optimizer(Logger):
 
         """
         new_mode = new_mode.lower()
+        if parameter == 'error_inflation':
+            self._inflation_mode = new_mode
+
 
         name, latex, fget, fset, mode, to_fit, bounds = \
             self._model.fittingParameters[parameter]
@@ -347,12 +391,23 @@ class Optimizer(Logger):
         except InvalidModelException:
             return 1e100
 
-        res = (data.ravel() - final_model.ravel()) / datastd.ravel()
+        res = (data.ravel() - final_model.ravel()) / self.error_term
         res = np.nansum(res*res)
         if res == 0:
             res = np.nan
 
         return res
+
+    @property
+    def error_term(self):
+        
+        error = self._observed.errorBar**2
+
+        if self._enable_inflation:
+            error += 10.0**self._inflation_term
+
+        return np.sqrt(error).ravel()
+
 
     def compute_fit(self):
         """

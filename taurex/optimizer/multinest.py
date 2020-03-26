@@ -73,19 +73,18 @@ class MultiNestOptimizer(Optimizer):
     def compute_fit(self):
 
         data = self._observed.spectrum
-        datastd = self._observed.errorBar
         sqrtpi = np.sqrt(2*np.pi)
 
         def multinest_loglike(cube, ndim, nparams):
             # log-likelihood function called by multinest
             fit_params_container = np.array(
                 [cube[i] for i in range(len(self.fitting_parameters))])
-            chi_t = self.chisq_trans(fit_params_container, data, datastd)
+            chi_t = self.chisq_trans(fit_params_container, data, self.error_term)
 
             # print('---------START---------')
             # print('chi_t',chi_t)
             # print('LOG',loglike)
-            loglike = -np.sum(np.log(datastd*sqrtpi)) - 0.5 * chi_t
+            loglike = -np.sum(np.log(self.error_term*sqrtpi)) - 0.5 * chi_t
             # print(loglike)
             return loglike
 
