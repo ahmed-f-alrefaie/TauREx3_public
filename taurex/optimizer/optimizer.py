@@ -154,8 +154,6 @@ class Optimizer(Logger):
 
         elif param_type == 'gaussian':
             _mean = self._param_mean[name]
-            if mode == 'log':
-                _mean = np.log10(_mean)
             
             std = self._param_std[name]
 
