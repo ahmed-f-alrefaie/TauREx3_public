@@ -80,9 +80,8 @@ class NestleOptimizer(Optimizer):
             # converting parameters from normalised grid to uniform prior
             cube = []
 
-            for idx, bounds in enumerate(self.fit_boundaries):
-                bound_min, bound_max = bounds
-                cube.append((theta[idx] * (bound_max-bound_min)) + bound_min)
+            for idx, func in enumerate(self.fitting_func):
+                cube.append(func(theta[idx]))
 
             return tuple(cube)
 

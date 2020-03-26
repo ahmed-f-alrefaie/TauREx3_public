@@ -163,6 +163,9 @@ def main():
             bounds = value['bounds']
             mode = value['mode']
             factor = value['factor']
+            p_type = value.get('type',None)
+            mean = value.get('mean',None)
+            std = value.get('std',None)
 
             if fit:
                 logging.info('Fitting: {}'.format(key))
@@ -178,6 +181,12 @@ def main():
 
             if mode:
                 optimizer.set_mode(key, mode.lower())
+            if p_type:
+                optimizer.set_type(key,p_type.lower())
+            if mean:
+                optimizer.set_mean(key,mean)
+            if std:
+                optimizer.set_std(key,std)
 
         start_time = time.time()
         solution = optimizer.fit(output_size=output_size)

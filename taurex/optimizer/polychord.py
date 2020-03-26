@@ -68,11 +68,10 @@ class PolyChordOptimizer(Optimizer):
             # print(type(cube))
             cube = [0.0]*ndim
 
-            for idx, bounds in enumerate(self.fit_boundaries):
+            for idx, func in enumerate(self.fitting_func):
                 # print(idx,self.fitting_parameters[idx])
-                bound_min, bound_max = bounds
-                cube[idx] = (hypercube[idx] *
-                             (bound_max-bound_min)) + bound_min
+                
+                cube[idx] = func(hypercube[idx])
                 #print('CUBE idx',cube[idx])
             # print('-----------')
             return cube

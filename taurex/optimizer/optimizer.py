@@ -39,6 +39,9 @@ class Optimizer(Logger):
         self._inflation_term = 0.0
         self._inflation_bounds = [-4, 0]
         self._inflation_mode = 'linear'
+        self._param_type = {}
+        self._param_mean = {}
+        self._param_std = {}
         
 
     def setup_inflation(self):
@@ -83,6 +86,17 @@ class Optimizer(Logger):
         if observed is not None:
             self._binner = observed.create_binner()
 
+
+    def set_type(self,parameter, param_type):
+        self._param_type[parameter] = param_type
+    
+    def set_mean(self, parameter, mean):
+        self._param_mean[parameter] = mean
+    
+    def set_std(self, parameter, std):
+        self._param_std[parameter] = std
+
+
     def compile_params(self):
         """ 
 
@@ -92,8 +106,10 @@ class Optimizer(Logger):
 
 
         """
+        
         self.info('Initializing parameters')
         self.fitting_parameters = []
+        self.fitting_func = []
         # param_name,param_latex,
         #                 fget.__get__(self),fset.__get__(self),
         #                         default_fit,default_bounds
@@ -103,9 +119,14 @@ class Optimizer(Logger):
             self.debug('Checking fitting parameter {}'.format(params))
             if to_fit:
                 self.fitting_parameters.append(params)
+                self.create_func(name,mode,bounds)
+
 
         if self._enable_inflation:
-            self.fitting_parameters.append(self.setup_inflation())
+            params = self.setup_inflation()
+            self.fitting_parameters.append(params)
+            name, latex, fget, fset, mode, to_fit, bounds = params
+            self.create_func(name,mode,bounds)
 
 
         self.info('-------FITTING---------------')
@@ -114,6 +135,38 @@ class Optimizer(Logger):
             name, latex, fget, fset, mode, to_fit, bounds = params
             self.info('{}: Value: {} Mode:{} Boundaries:{}'.format(
                 name, fget(), mode, bounds))
+
+
+    def create_func(self, name, mode, bounds):
+        param_type = self._param_type.get(name,'uniform').lower()
+        if param_type == 'uniform':
+            _bounds = bounds
+            if mode == 'log':
+                _bounds = np.log10(bounds)
+
+            def param_func_uniform(x, param_bounds=_bounds):
+
+                bound_min, bound_max = param_bounds
+
+                return (x * (bound_max-bound_min)) + bound_min
+
+            self.fitting_func.append(param_func_uniform)
+
+        elif param_type == 'gaussian':
+            _mean = self._param_mean[name]
+            if mode == 'log':
+                _mean = np.log10(_mean)
+            
+            std = self._param_std[name]
+
+            def param_func_gauss(x, param_mean=_mean, param_std=std):
+                from scipy.stats import norm
+                loc = param_mean
+                scale = param_std
+
+                return norm.ppf(x,loc=loc,scale=scale)
+
+            self.fitting_func.append(param_func_gauss)
 
     def update_model(self, fit_params):
         """
@@ -182,9 +235,8 @@ class Optimizer(Logger):
             ( ``bound_min`` , ``bound_max`` )
 
         """
-        return [c[-1] if c[4] == 'linear'
-                else (math.log10(c[-1][0]), math.log10(c[-1][1]))
-                for c in self.fitting_parameters]
+        return [(c(0),c(1.0)) if c.__name__ == 'param_func_uniform' else (c(0.1), c(0.9))
+                for c in self.fitting_func]
 
     @property
     def fit_names(self):
@@ -218,6 +270,23 @@ class Optimizer(Logger):
         return [c[1] if c[4] == 'linear' else 'log({})'.format(c[1])
                 for c in self.fitting_parameters]
 
+    @property
+    def fit_type(self):
+        """
+
+        Returns the names of the parameters in LaTeX format
+
+        Returns
+        -------
+        :obj:`list`
+            List of parameter names in LaTeX format
+
+
+        """
+
+        return [self._param_type.get(c,'uniform')
+                for c in self.fit_names]
+
     def enable_fit(self, parameter):
         """
         Enables fitting of the parameter
@@ -236,7 +305,6 @@ class Optimizer(Logger):
 
         name, latex, fget, fset, mode, to_fit, bounds = \
             self._model.fittingParameters[parameter]
-
         to_fit = True
 
         self._model.fittingParameters[parameter] = (
@@ -434,6 +502,7 @@ class Optimizer(Logger):
 
         fit_names = self.fit_names
         fit_boundaries = self.fit_boundaries
+        fit_type = self.fit_type
 
         fit_min = [x[0] for x in fit_boundaries]
         fit_max = [x[1] for x in fit_boundaries]
@@ -447,8 +516,8 @@ class Optimizer(Logger):
         self.info('Dimensionality of fit: %s', len(fit_names))
         self.info('')
 
-        output = tabulate(zip(fit_names, fit_values, fit_min, fit_max),
-                          headers=['Param', 'Value', 'Bound-min', 'Bound-max'])
+        output = tabulate(zip(fit_names, fit_values, fit_type, fit_min, fit_max),
+                          headers=['Param', 'Value','Prior', 'Bound-min', 'Bound-max'])
 
         self.info('\n%s\n\n', output)
         self.info('')
