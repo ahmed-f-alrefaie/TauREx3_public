@@ -486,7 +486,7 @@ class Optimizer(Logger):
             for i in range(1,inflation_regions.shape[0],1):
                 x = i-1
                 value_to_set = self._inflation_terms[x]
-                filter_wn = (wlgrid >= self._inflation_regions[x]) & (wlgrid  < self._inflation_regions[i])
+                filter_wn = (wlgrid >= inflation_regions[x]) & (wlgrid  < inflation_regions[i])
 
                 final_error[filter_wn] = value_to_set
 

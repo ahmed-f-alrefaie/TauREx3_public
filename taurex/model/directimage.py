@@ -1,6 +1,6 @@
 from .emission import EmissionModel
 from taurex.constants import PI
-
+import numpy as np
 
 class DirectImageModel(EmissionModel):
     """
@@ -101,22 +101,23 @@ class DirectImageModel(EmissionModel):
 
 
     def model(self, wngrid=None, cutoff_grid=True):
-        native_grid, absorp, tau, None = super().model(wngrid, cutoff_grid)
+        native_grid, absorp, tau, extra = super().model(wngrid, cutoff_grid)
 
         linear_regions = np.array([0]+self._linear_regions)
-        final_scale = np.zeros_like(wngrid)
 
-        wlgrid = 10000/wngrid
-
+        wlgrid = 10000/native_grid
+        final_scale = np.zeros_like(native_grid)
         for i in range(1,linear_regions.shape[0],1):
             x = i-1
             value_to_set = self._linear_scale[x]
-            filter_wn = (wlgrid >= self._linear_regions[x]) & (wlgrid  < self._linear_regions[i])
-
-            final_error[filter_wn] = value_to_set
+            filter_wn = (wlgrid >= linear_regions[x]) & (wlgrid  < linear_regions[i])
+            print(filter_wn)
+            if np.any(filter_wn):
+                print(final_scale[filter_wn])
+                final_scale[filter_wn] = value_to_set
         absorp*=final_scale
 
-        return native_grid, absorp, tau, None
+        return native_grid, absorp, tau, extra
 
 
 
