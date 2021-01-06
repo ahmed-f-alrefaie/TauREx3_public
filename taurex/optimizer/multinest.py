@@ -79,12 +79,12 @@ class MultiNestOptimizer(Optimizer):
             # log-likelihood function called by multinest
             fit_params_container = np.array(
                 [cube[i] for i in range(len(self.fitting_parameters))])
-            chi_t = self.chisq_trans(fit_params_container, data, self.error_term)
+            chi_t = self.chisq_trans(fit_params_container, data, None)
 
             # print('---------START---------')
             # print('chi_t',chi_t)
             # print('LOG',loglike)
-            loglike = -np.sum(np.log(self.error_term*sqrtpi)) - 0.5 * chi_t
+            loglike = -np.sum(np.log(self._myerror*sqrtpi)) - 0.5 * chi_t
             # print(loglike)
             return loglike
 

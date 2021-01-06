@@ -64,16 +64,17 @@ class DirectImageModel(EmissionModel):
                          atm_min_pressure,
                          atm_max_pressure,
                          ngauss=ngauss)
-
+        
         self._linear_scale = linear_scaling
         self._linear_regions = linear_regions
+        self.collect_linear_scaling_terms()
 
     def collect_linear_scaling_terms(self):
 
         bounds = [1.0, 2.0]
         for idx, val in enumerate(self._linear_scale):
             point_num = idx+1
-            param_name = 'scale_factor_{}'.format(point_num)
+            param_name = 'scale_factor{}'.format(point_num)
             param_latex = '$S_{}$'.format(point_num)
 
             def read_point(self, idx=idx):
@@ -111,9 +112,9 @@ class DirectImageModel(EmissionModel):
             x = i-1
             value_to_set = self._linear_scale[x]
             filter_wn = (wlgrid >= linear_regions[x]) & (wlgrid  < linear_regions[i])
-            print(filter_wn)
+
             if np.any(filter_wn):
-                print(final_scale[filter_wn])
+
                 final_scale[filter_wn] = value_to_set
         absorp*=final_scale
 

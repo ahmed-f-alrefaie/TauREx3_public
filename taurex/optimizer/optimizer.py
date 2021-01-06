@@ -39,7 +39,7 @@ class Optimizer(Logger):
         self._enable_inflation = False
         self._inflation_terms = inflation_terms
         self._inflation_regions = inflation_regions
-        self._inflation_bounds = [-4, 4]*len(self._inflation_terms)
+        # self._inflation_bounds = [-4, 4]*len(self._inflation_terms)
         # self._inflation_bounds = [[-4,4], [-5,5]]
         self._inflation_mode = 'linear'
         self._param_type = {}
@@ -50,18 +50,19 @@ class Optimizer(Logger):
     def setup_inflation(self):
         inflation_list = []
 
-        for i,res in enumerate(zip(self._inflation_terms, self._inflation_regions, self._inflation_bounds)):
-            t, r, b = res
-            param_name = f'error_inflation_{i+1}'
+        for i,res in enumerate(zip(self._inflation_terms, self._inflation_regions)):
+            t, r = res
+            b = [-4,4]
+            param_name = f'error_inflation{i+1}'
             param_latex = f'$\\epsilon{i+1}$'
 
             def read(i=i):
-                return self._inflation_term[i]
+                return self._inflation_terms[i]
             
             def write(value,i=i):
-                self._inflation_term[i] = value
+                self._inflation_terms[i] = value
 
-            bounds = self._inflation_bounds[i]
+            bounds = b
             mode = self._inflation_mode
             self.info('Error inflation %d', i)
             inflation_list.append((param_name, param_latex, read, write, mode, True, bounds))
@@ -305,7 +306,7 @@ class Optimizer(Logger):
 
         """
 
-        if parameter == 'error_inflation':
+        if 'error_inflation' in parameter:
             self._enable_inflation = True
             return
 
@@ -466,7 +467,9 @@ class Optimizer(Logger):
         except InvalidModelException:
             return 1e100
 
-        res = (data.ravel() - final_model.ravel()) / self.error_term(obs_bins)
+        self._myerror = self.error_term(obs_bins)
+
+        res = (data.ravel() - final_model.ravel()) / self._myerror
         res = np.nansum(res*res)
         if res == 0:
             res = np.nan

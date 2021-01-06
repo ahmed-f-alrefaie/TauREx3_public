@@ -52,6 +52,12 @@ inflation_regions=1.0, 4.0, 6.0
 inflation_terms = 1.0, 2.0, 3.0
 
 
-#[Observation]
-#observed_spectrum = quickstart.dat
+[Observation]
+observed_spectrum = quickstart.dat
+
+[Fitting]
+scale_factor1:fit = True
+scale_factor2:fit = True
+error_inflation1:fit = True
+error_inflation2:fit = True
 
