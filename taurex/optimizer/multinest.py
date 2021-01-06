@@ -24,8 +24,8 @@ class MultiNestOptimizer(Optimizer):
                  importance_sampling=False,
                  resume=False,
                  multinest_prefix='1-',
-                 verbose_output=True, sigma_fraction=0.1):
-        super().__init__('Multinest', observed, model, sigma_fraction)
+                 verbose_output=True, sigma_fraction=0.1, inflation_terms=[], inflation_regions=[]):
+        super().__init__('Multinest', observed, model, sigma_fraction, inflation_terms, inflation_regions)
 
         # sampling chains directory
         self.nest_path = 'chains/'

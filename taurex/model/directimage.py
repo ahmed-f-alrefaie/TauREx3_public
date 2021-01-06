@@ -52,6 +52,8 @@ class DirectImageModel(EmissionModel):
                  atm_min_pressure=1e-4,
                  atm_max_pressure=1e6,
                  ngauss=4,
+                 linear_scaling=[],
+                 linear_regions=[]
                  ):
         super().__init__(planet,
                          star,
@@ -63,6 +65,30 @@ class DirectImageModel(EmissionModel):
                          atm_max_pressure,
                          ngauss=ngauss)
 
+        self._linear_scale = linear_scaling
+        self._linear_regions = linear_regions
+
+    def collect_linear_scaling_terms(self):
+
+        bounds = [1.0, 2.0]
+        for idx, val in enumerate(self._linear_scale):
+            point_num = idx+1
+            param_name = 'scale_factor_{}'.format(point_num)
+            param_latex = '$S_{}$'.format(point_num)
+
+            def read_point(self, idx=idx):
+                return self._linear_scale[idx]
+
+            def write_point(self, value, idx=idx):
+                self._linear_scale[idx] = value
+
+            fget_point = read_point
+            fset_point = write_point
+            self.debug('FGet_location %s', fget_point)
+            default_fit = False
+            self.add_fittable_param(param_name, param_latex, fget_point,
+                                    fset_point, 'log', default_fit, bounds)
+
     def compute_final_flux(self, f_total):
         star_distance_meters = self._star.distance*3.08567758e16
 
@@ -72,3 +98,25 @@ class DirectImageModel(EmissionModel):
 
         return((f_total * (planet_radius**2) * 2.0 * PI) /
                (4 * PI * (star_distance_meters**2))) * SDR
+
+
+    def model(self, wngrid=None, cutoff_grid=True):
+        native_grid, absorp, tau, None = super().model(wngrid, cutoff_grid)
+
+        linear_regions = np.array([0]+self._linear_regions)
+        final_scale = np.zeros_like(wngrid)
+
+        wlgrid = 10000/wngrid
+
+        for i in range(1,linear_regions.shape[0],1):
+            x = i-1
+            value_to_set = self._linear_scale[x]
+            filter_wn = (wlgrid >= self._linear_regions[x]) & (wlgrid  < self._linear_regions[i])
+
+            final_error[filter_wn] = value_to_set
+        absorp*=final_scale
+
+        return native_grid, absorp, tau, None
+
+
+

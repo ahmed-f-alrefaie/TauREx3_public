@@ -27,7 +27,8 @@ class Optimizer(Logger):
 
     """
 
-    def __init__(self, name, observed=None, model=None, sigma_fraction=0.1):
+    def __init__(self, name, observed=None, model=None, sigma_fraction=0.1, 
+                 inflation_terms=[], inflation_regions=[]):
         super().__init__(name)
 
         self.set_model(model)
@@ -36,8 +37,10 @@ class Optimizer(Logger):
         self._sigma_fraction = sigma_fraction
 
         self._enable_inflation = False
-        self._inflation_term = 0.0
-        self._inflation_bounds = [-4, 0]
+        self._inflation_terms = inflation_terms
+        self._inflation_regions = inflation_regions
+        self._inflation_bounds = [-4, 4]*len(self._inflation_terms)
+        # self._inflation_bounds = [[-4,4], [-5,5]]
         self._inflation_mode = 'linear'
         self._param_type = {}
         self._param_mean = {}
@@ -45,20 +48,25 @@ class Optimizer(Logger):
         
 
     def setup_inflation(self):
+        inflation_list = []
 
-        param_name = 'error_inflation'
-        param_latex = '$\\epsilon$'
+        for i,res in enumerate(zip(self._inflation_terms, self._inflation_regions, self._inflation_bounds)):
+            t, r, b = res
+            param_name = f'error_inflation_{i+1}'
+            param_latex = f'$\\epsilon{i+1}$'
 
-        def read():
-            return self._inflation_term
-        
-        def write(value):
-            self._inflation_term = value
+            def read(i=i):
+                return self._inflation_term[i]
+            
+            def write(value,i=i):
+                self._inflation_term[i] = value
 
-        bounds = self._inflation_bounds
-        mode = self._inflation_mode
+            bounds = self._inflation_bounds[i]
+            mode = self._inflation_mode
+            self.info('Error inflation %d', i)
+            inflation_list.append((param_name, param_latex, read, write, mode, True, bounds))
+        return inflation_list
 
-        return param_name, param_latex, read, write, mode, True, bounds
 
     def set_model(self, model):
         """
@@ -124,9 +132,10 @@ class Optimizer(Logger):
 
         if self._enable_inflation:
             params = self.setup_inflation()
-            self.fitting_parameters.append(params)
-            name, latex, fget, fset, mode, to_fit, bounds = params
-            self.create_func(name,mode,bounds)
+            for p in params:
+                self.fitting_parameters.append(p)
+                name, latex, fget, fset, mode, to_fit, bounds = p
+                self.create_func(name,mode,bounds)
 
 
         self.info('-------FITTING---------------')
@@ -457,20 +466,31 @@ class Optimizer(Logger):
         except InvalidModelException:
             return 1e100
 
-        res = (data.ravel() - final_model.ravel()) / self.error_term
+        res = (data.ravel() - final_model.ravel()) / self.error_term(obs_bins)
         res = np.nansum(res*res)
         if res == 0:
             res = np.nan
 
         return res
 
-    @property
-    def error_term(self):
+    def error_term(self, wngrid):
         
         error = self._observed.errorBar**2
 
         if self._enable_inflation:
-            error += 10.0**self._inflation_term
+            inflation_regions = np.array([0]+self._inflation_regions)
+            final_error = np.zeros_like(wngrid)
+
+            wlgrid = 10000/wngrid
+
+            for i in range(1,inflation_regions.shape[0],1):
+                x = i-1
+                value_to_set = self._inflation_terms[x]
+                filter_wn = (wlgrid >= self._inflation_regions[x]) & (wlgrid  < self._inflation_regions[i])
+
+                final_error[filter_wn] = value_to_set
+
+            error += 10.0**final_error
 
         return np.sqrt(error).ravel()
 
